@@ -38,7 +38,7 @@
       </address>
     </author>
 
-    <date day="2" month="March" year="2012"/>
+    <date day="11" month="July" year="2012"/>
 
     <abstract>
       <t>
@@ -123,7 +123,7 @@
 
       <section title="Case 2">
         <t><list style="hanging">
-          <t hangText="Pros:"/>
+          <t hangText="Countermeasure:"/>
             <t>
               Specify short time for TTLs of DS and NS records in parent
 	      zone to make reflection duration shorter for modification
@@ -145,7 +145,7 @@
 
       <section title="Case 3">
         <t><list style="hanging">
-          <t hangText="Pros:"/>
+          <t hangText="Countermeasure:"/>
             <t>
               Specify short time for TTL of DS record in parent zone to
 	      make reflection duration shorter for modification
@@ -167,7 +167,7 @@
 
       <section title="Case 4">
         <t><list style="hanging">
-          <t hangText="Pros:"/>
+          <t hangText="Countermeasure:"/>
             <t>
               Specify short time for TTL of newly registered/modified NS
 	      and/or DS in parent zone to make reflection duration
@@ -191,7 +191,7 @@
 
       <section title="Case 5">
         <t><list style="hanging">
-          <t hangText="Pros:"/>
+          <t hangText="Countermeasure:"/>
             <t>
               Do nothing because registration of wrong DS is
 	      responsibility of registrant.
@@ -273,6 +273,159 @@
         <seriesInfo name="" value="http://www.root-dnssec.org/2011/01/27/rrsig-checking/"/>
       </reference>
     </references>
+
+    <section title="Consideration from observed incident">
+      <t>
+        On middle of 2012, there was KSK rollover failure at a famous
+	site.  Followings are observed actions the site's zone master 
+	took and consideration about them.
+      </t>
+
+      <section title="Action 1 (Act1): Add new KSK DNSKEY to the zone">
+        <t>
+	  The zone master added a new KSK DNSKEY to the zone.  At that
+	  time, ZSK for the zone was signed with the new KSK, but was 
+	  not double-signed with previous (current) KSK.  Therefore, 
+	  consistency between DS in parent zone and DNSKEY in child
+	  zone was broken.  By this action, the zone became bogus
+	  (name resolution at validator became failure).
+	</t>
+	<t>
+	  Following figure shows relation of DS and DNSKEY in parent
+	  zone and child zone.
+	</t>
+	<figure>
+	  <artwork><![CDATA[
++------------------------------------------------------------------+
+|Parent zone                                                       |
+| +-------+-------+---------+--------------------------------------+
+| |RR     |Key ID |         |Note                                  |
+| +-------+-------+---------+--------------------------------------+
+| |DS     |22222  |         |                                      |
++-+-------+-------+---------+--------------------------------------+
+|Child zone                                                        |
+| +-------+-------+---------+--------------------------------------+
+| |RR     |Key ID |Key Type |Note                                  |
+| +-------+-------+---------+--------------------------------------+
+| |DNSKEY |11111  |ZSK      |                                      |
+| |DNSKEY |22222  |KSK      |previous KSK                          |
+| |DNSKEY |33333  |KSK      |Added / Used for signing ZSK          |
+| |DNSKEY |44444  |KSK      |                                      |
++-+-------+-------+---------+--------------------------------------+
+	  ]]></artwork>
+	</figure>
+      </section>
+
+      <section title="Action 2 (Act2): Removed DS from parent zone">
+        <t>
+	  After a while, the zone master removed DS from parent zone.
+	  By this action, the zone became insecure.
+	</t>
+	<t>
+	  Following figure shows relation of DS and DNSKEY in parent
+	  zone and child zone.
+	</t>
+	<figure>
+	  <artwork><![CDATA[
++------------------------------------------------------------------+
+|Parent zone                                                       |
+| +-------+-------+---------+--------------------------------------+
+| |RR     |Key ID |         |Note                                  |
+| +-------+-------+---------+--------------------------------------+
+| |DS     |N/A    |         |DS was removed                        |
++-+-------+-------+---------+--------------------------------------+
+|Child zone                                                        |
+| +-------+-------+---------+--------------------------------------+
+| |RR     |Key ID |Key Type |Note                                  |
+| +-------+-------+---------+--------------------------------------+
+| |DNSKEY |11111  |ZSK      |                                      |
+| |DNSKEY |22222  |KSK      |previous KSK                          |
+| |DNSKEY |33333  |KSK      |Used for signing ZSK                  |
+| |DNSKEY |44444  |KSK      |                                      |
++-+-------+-------+---------+--------------------------------------+
+	  ]]></artwork>
+	</figure>
+      </section>
+
+      <section title="Action 3 (Act3): Add new DS to parent zone">
+        <t>
+	  After a while, the zone master added news DS correspond to
+	  new DNSKEY (key ID: 33333) to parent zone.  By this action,
+	  the zone became secure again.
+	</t>
+	<t>
+	  Following figure shows relation of DS and DNSKEY in parent
+	  zone and child zone.
+	</t>
+	<figure>
+	  <artwork><![CDATA[
++------------------------------------------------------------------+
+|Parent zone                                                       |
+| +-------+-------+---------+--------------------------------------+
+| |RR     |Key ID |         |Note                                  |
+| +-------+-------+---------+--------------------------------------+
+| |DS     |33333  |         |                                      |
++-+-------+-------+---------+--------------------------------------+
+|Child zone                                                        |
+| +-------+-------+---------+--------------------------------------+
+| |RR     |Key ID |Key Type |Note                                  |
+| +-------+-------+---------+--------------------------------------+
+| |DNSKEY |11111  |ZSK      |                                      |
+| |DNSKEY |22222  |KSK      |previous KSK                          |
+| |DNSKEY |33333  |KSK      |Used for signing ZSK                  |
+| |DNSKEY |44444  |KSK      |                                      |
++-+-------+-------+---------+--------------------------------------+
+	  ]]></artwork>
+	</figure>
+      </section>
+
+      <section title="Consideration from this incident">
+        <t>
+	  Influence to validators by this incident was differ by cache
+	  status of each validator.  Possible states of validators are 
+	  shown in following figure.
+	</t>
+	<figure>
+	  <artwork><![CDATA[
+                      +--------------------------------------------+
+                      |timing                                      |
++-------------+-------+--------------------------------------------+
+|DS cache     |RR     |      Act1       Act2       Act3            |
+|expired      |       |                                            |
++-------------+-------+--------------------------------------------+
+|before Act1  |DS     |22222 ____________________________\ (a)     |
+|             |DNSKEY |22222                             /         |
++-------------+-------+--------------------------------------------+
+|between Act1 |DS     |           22222 ___________________\ (b)   |
+|    and Act2 |DNSKEY |           33333                    /       |
++-------------+-------+--------------------------------------------+
+|between Act2 |DS     |                      (none) _________\ (c) |
+|    and Act3 |DNSKEY |                      (none)          /     |
++-------------+-------+--------------------------------------------+
+|after Act3   |DS     |                                 33333 _\ (a)
+|             |DNSKEY |                                 33333  /   |
++-------------+-------+--------------------------------------------+
+                       (a) secure until DS TTL expires
+                       (b) bogus until DS TTL expires
+                       (c) insecure until NS TTL expires
+	  ]]></artwork>
+	</figure>
+	<t>
+	  To mitigate influence, longer the secure state of above
+	  figure is considered useful.
+          <list style="symbols">
+	    <t>
+	      Short DS TTL seems to be useful for early recovery from
+	      bogus status (as described in Case 3)
+	    </t>
+	    <t>
+	      Action 2 may occur insecure state during NS TTL.  It
+	      will be unnecessary if DS TTL is enough short.
+	    </t>
+	  </list>
+	</t>
+      </section>
+    </section>
 
   </back>
 </rfc>

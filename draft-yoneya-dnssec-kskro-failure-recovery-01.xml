@@ -3,7 +3,7 @@
 <!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
 ]>
 
-<rfc category="info" docName="draft-yoneya-dnssec-kskro-failure-recovery-00" ipr="trust200902">
+<rfc category="info" docName="draft-yoneya-dnssec-kskro-failure-recovery-01" ipr="trust200902">
   <front>
     <title abbrev="DNSSEC practices">DNSSEC KSK rollover failure recovery practices</title>
 
